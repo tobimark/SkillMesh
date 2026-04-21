@@ -1,8 +1,8 @@
-# SkillMesh
+<p align="center">
+  <img width="500" height="96" alt="微信图片_20260421174416_325_94" src="https://github.com/user-attachments/assets/b171213c-9cd1-4da4-a40f-a82c9300a3d5" />
+ </p>
 
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/f8259f4c-9253-43ef-b6bc-9ef8415a4e17" />
-
-> Connect and orchestrate skills across AI agents
+<p align="center">Connect and orchestrate skills across AI agents</p>
 SkillMesh is a unified skill layer for AI agents. It connects runtimes like Claude Code and OpenClaw, enabling simple orchestration without complex frameworks.
 ---
 
