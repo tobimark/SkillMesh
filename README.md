@@ -90,43 +90,56 @@ SkillMesh provides a simple layer that sits between your app and multiple AI age
 ### 1. Install
 
 ```bash
-git clone https://github.com/yourname/skillmesh
-cd skillmesh
-pnpm install
+pip install skillmesh
 ```
 
----
-
-### 2. Start API
+Or install from source:
 
 ```bash
-pnpm dev:api
+git clone https://github.com/tobimark/SkillMesh.git
+cd SkillMesh
+pip install -e .
 ```
 
 ---
 
-### 3. Run a task
+### 2. Create a Skill
 
-```bash
-curl -X POST http://localhost:3000/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent": "openclaw",
-    "prompt": "Write a hello world script"
-  }'
+```yaml
+# examples/hello_world.yaml
+name: hello_world
+description: A simple hello world skill
+
+steps:
+  - name: greet
+    prompt: "Generate a friendly greeting for {{user_name}}"
+    adapter: claude_code
 ```
 
 ---
 
-### 4. Use SDK
+### 3. Run with Python
 
-```ts
-import { runTask } from "@skillmesh/sdk";
+```python
+import asyncio
+from skillmesh import ExecutionEngine, ExecutionContext
 
-const result = await runTask({
-  agent: "openclaw",
-  prompt: "Summarize this text"
-});
+async def main():
+    engine = ExecutionEngine()
+    await engine.initialize()
+
+    # Load and run a skill
+    engine.loader.load_skill("examples/hello_world.yaml")
+
+    context = ExecutionContext(variables={"user_name": "Alice"})
+    result = await engine.run("hello_world", context)
+
+    for step_result in result.results:
+        print(f"[{step_result.step_name}] {step_result.output}")
+
+    await engine.shutdown()
+
+asyncio.run(main())
 ```
 
 ---
@@ -134,40 +147,62 @@ const result = await runTask({
 ## 🧩 Skill Example
 
 ```yaml
-name: web_search
+name: pr_review
+description: GitHub PR 审查技能
 
-input:
-  query: string
+steps:
+  - name: get_pr_info
+    prompt: "获取 PR 的详细信息"
+    adapter: claude_code
 
-runtime_mapping:
-  openclaw: search.run
-  claude: tool.search
+  - name: analyze_changes
+    prompt: "分析代码变更，识别潜在问题"
+    adapter: claude_code
+    condition: "{{has_code_changes}}"
 ```
 
 ---
 
 ## 🔌 Adapter Interface
 
-```ts
-export interface AgentAdapter {
-  name: string;
+```python
+from abc import ABC, abstractmethod
+from skillmesh.models.context import ExecutionContext
 
-  runTask(input: {
-    prompt: string;
-    skills?: string[];
-  }): Promise<any>;
-}
+class AgentAdapter(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @abstractmethod
+    async def execute(
+        self,
+        prompt: str,
+        context: ExecutionContext,
+        **kwargs
+    ) -> str:
+        pass
+
+    @abstractmethod
+    async def start(self) -> None:
+        pass
+
+    @abstractmethod
+    async def stop(self) -> None:
+        pass
 ```
 
 ---
 
 ## 🎯 Roadmap
 
-* [ ] Claude Code adapter
+* [x] Claude Code adapter
+* [ ] OpenClaw adapter
 * [ ] Codex adapter
-* [ ] Skill marketplace
-* [ ] Flow builder UI
-* [ ] Multi-agent orchestration
+* [ ] Loop execution
+* [ ] Parallel execution
+* [ ] Error handling
 
 ---
 
