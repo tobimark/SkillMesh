@@ -1,20 +1,53 @@
 # SkillMesh 设计方案 v1.0
 
 **日期**: 2026-04-25
-**状态**: 已认可
+**状态**: 已认可（第二版）
 
 ---
 
 ## 1. 产品定位
 
-**SkillMesh** 是一个 Python SDK，作为 Claude Code 的执行引擎和任务编排层。它以 Skill 为核心，支持条件执行、循环等复杂控制流，让开发者可以快速构建可复用的 AI Agent 功能。
+**SkillMesh** 是一个 Python SDK，封装 Claude Code 作为执行引擎，提供 Skill 抽象层和编排能力。开发者基于 SkillMesh 二次开发自己的 AI Agent 产品（Web 服务、桌面客户端、可执行文件等）。
 
 **核心定位**：
-- SkillMesh 是执行引擎，发起 Skill 执行
-- Claude Code 是被调用的执行单元
+- SkillMesh 是 Python SDK，提供 Skill 加载和编排能力
+- Claude Code 是被封装的执行单元（子进程模式）
 - 面向固定、重复性的需求场景
 
-**用户**：独立开发者，基于 SkillMesh 二次开发商业化 AI Agent（Web 服务、桌面客户端、可执行文件等）
+**用户**：独立开发者，基于 SkillMesh 二次开发商业化 AI Agent
+
+**核心价值**：
+- **集成**：把 Claude Code CLI 变成 Python SDK，方便嵌入任何产品
+- **编排**：把多个 Skill 组合成业务流程
+
+---
+
+## 1.1 为什么要封装 Claude Code？
+
+Claude Code 本身是一个成熟的 Agent 框架，有 Skill 系统、子 Agent、工具调用等。封装后获得：
+
+| 封装前 (Claude Code) | 封装后 (SkillMesh) |
+|---------------------|-------------------|
+| CLI 工具 | Python SDK |
+| 单个 Skill 执行 | 多 Skill 编排 |
+| 手动交互 | API/程序化调用 |
+| 难以集成到产品 | 容易集成到任何产品 |
+
+---
+
+## 1.2 Claude Code 调用模式选择
+
+**选择：子进程 + Bridge API 模式**
+
+Claude Code 提供两种可编程接口：
+- **QueryEngine SDK**：进程内调用，但依赖 Bun 运行时，封装复杂
+- **Bridge API**：Claude Code 启动成 HTTP 服务，通过 JSON-RPC 通信
+
+**推荐方案**：子进程调用 Claude Code CLI，通过 Bridge API 协议通信
+
+```
+SkillMesh SDK → Bridge API (HTTP) → Claude Code 子进程
+```
 
 ---
 
@@ -191,16 +224,63 @@ skillmesh/
 
 ---
 
-## 9. 待实现阶段研究的问题
+## 9. Claude Code 源码研究结果
 
-- Claude Code 的可编程接口（需要研究 Claude Code 源码）
-- Claude Code Adapter 的具体实现方式
-- Skill 之间的数据传递方式
-- 模板引擎的实现（`{{变量}}` 替换）
+### 9.1 关键发现
+
+**Skill 的本质**
+- Skill = `type: 'prompt'` 的 Command（命令）
+- 通过 `SkillTool` 执行（slash command 机制）
+- 两种执行模式：
+  - **inline**：Skill 内容展开成消息，插入当前对话
+  - **fork**：在独立子 Agent 中执行，有自己的 token 预算
+
+**Agent 执行机制**
+- 通过 `AgentTool` 启动子 Agent
+- `runAgent()` 是核心函数，返回 `AsyncGenerator<Message>`
+- 支持多种模式：同进程、子进程、worktree（隔离 git 目录）、remote
+
+**QueryEngine**
+- Claude Code 的 SDK/headless 模式入口点
+- 支持直接在进程内调用
+
+### 9.2 Skill 定义格式（兼容 Claude Code）
+
+```yaml
+type: prompt
+name: pr_review
+description: GitHub PR 审查技能
+context: fork  # 可选，决定执行模式（inline/fork）
+model: sonnet  # 可选，模型覆盖
+
+# 预加载的其他 Skill
+skills:
+  - other_skill
+```
+
+**字段说明**
+
+| 字段 | 说明 |
+|------|------|
+| `type` | 固定为 `prompt` |
+| `name` | Skill 名称 |
+| `description` | Skill 描述 |
+| `context` | 执行模式：`inline`（默认）或 `fork` |
+| `model` | 可选的模型覆盖 |
+| `skills` | 预加载的其他 Skill |
 
 ---
 
-## 10. 设计决策记录
+## 10. 待实现阶段研究的问题
+
+- [x] Claude Code 的可编程接口（已研究：Bridge API / QueryEngine）
+- [x] Claude Code Adapter 的具体实现（子进程 + Bridge API）
+- [ ] Skill 之间的数据传递方式
+- [ ] 模板引擎的实现（`{{变量}}` 替换）
+
+---
+
+## 11. 设计决策记录
 
 | 日期 | 决策 | 原因 |
 |------|------|------|
@@ -208,3 +288,6 @@ skillmesh/
 | 2026-04-25 | 编程语言选择 Python | AI 领域主流，开发者基数大 |
 | 2026-04-25 | Skill 由 YAML 定义 | 声明式，易于分享和复用 |
 | 2026-04-25 | 条件执行和循环是核心 | 区别于简单 CLI 工具的关键特性 |
+| 2026-04-25 | 子进程 + Bridge API 调用 | QueryEngine 依赖 Bun 运行时，封装复杂 |
+| 2026-04-25 | Skill 格式兼容 Claude Code | 复用现有 Skill 生态 |
+| 2026-04-25 | 核心价值 = 集成 + 编排 | CLI → SDK，多 Skill 组合 |
