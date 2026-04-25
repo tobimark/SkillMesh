@@ -1,0 +1,12 @@
+name: hello_world
+description: A simple hello world skill demonstrating basic features
+
+steps:
+  - name: greet
+    prompt: "Generate a friendly greeting for {{user_name}}"
+    adapter: claude_code
+
+  - name: farewell
+    prompt: "Generate a farewell message"
+    adapter: claude_code
+    condition: "{{include_farewell}}"
