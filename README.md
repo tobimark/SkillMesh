@@ -148,15 +148,15 @@ asyncio.run(main())
 
 ```yaml
 name: pr_review
-description: GitHub PR 审查技能
+description: GitHub PR 
 
 steps:
   - name: get_pr_info
-    prompt: "获取 PR 的详细信息"
+    prompt: "get the detail of PR"
     adapter: claude_code
 
   - name: analyze_changes
-    prompt: "分析代码变更，识别潜在问题"
+    prompt: "analyze diff changes"
     adapter: claude_code
     condition: "{{has_code_changes}}"
 ```
